@@ -29,7 +29,10 @@ pub enum MintError {
     Presale,
 
     #[error("The presale is just about to start!")]
-    AlmostPresale
+    AlmostPresale,
+
+    #[error("Not enought Token!")]
+    TokenFailed
 }
 
 impl PrintProgramError for MintError {

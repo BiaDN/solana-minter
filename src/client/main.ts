@@ -8,7 +8,8 @@ import {
     checkAccounts,
     testContract,
     readIndexAccount,
-} from './dragon';
+    readTotalTokenAccount,
+} from './amoebit_init';
 
 async function main() {
     // Establish connection to the cluster
@@ -21,10 +22,13 @@ async function main() {
     await checkAccounts();
 
     // run the contract
-    await testContract('40000');
+    await testContract();
 
     // Find out how many times the contract has ran successfully
     await readIndexAccount();
+    
+    //
+    await readTotalTokenAccount();
 
     console.log('Success');
 }

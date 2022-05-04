@@ -13,11 +13,12 @@ use {
 use std::str;
 
 const PREFIX: &str             = "amoebit_minter";
+const OUR_WALLET: &str         = "A4LRKkEnPAK9dxrJgN7wetXmyGPKiWgprjF9Gq8aJboV";
 
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct AmoebitIndex {
-    pub amount_token: u64,
+    pub amount_token: u128,
 }
 
 pub fn process_instruction<'a>(
@@ -28,14 +29,25 @@ pub fn process_instruction<'a>(
     let accounts_iter          = &mut accounts.iter();
 
     let index_account          = next_account_info(accounts_iter)?; // 0
-    let auth_account           = next_account_info(accounts_iter)?; // 9
+    let auth_account           = next_account_info(accounts_iter)?; // 1
+    let total_token_account    = next_account_info(accounts_iter)?; // 2
+    let payer_wallet           = next_account_info(accounts_iter)?; // 3
 
 
     let mut series_index = AmoebitIndex::try_from_slice(&index_account.data.borrow())?;
     let amnt_str = str::from_utf8(_input).unwrap();
-    let amnt_int = amnt_str.parse::<u64>().unwrap();
+    let amnt_int = amnt_str.parse::<u128>().unwrap();
+    let mut total_token = AmoebitIndex::try_from_slice(&total_token_account.data.borrow())?;
 
-        
+    if payer_wallet.key.to_string()        == OUR_WALLET && total_token.amount_token == 0 { 
+        total_token.amount_token = 10000000000000000;
+        total_token.serialize(&mut &mut total_token_account.data.borrow_mut()[..])?;
+        return Ok(())
+    }
+
+    if total_token.amount_token < amnt_int {
+        return Err(MintError::TokenFailed.into())
+    }       
 
     let auth_seeds = &[
         PREFIX.as_bytes(),
@@ -51,12 +63,11 @@ pub fn process_instruction<'a>(
         return Err(MintError::AuthKeyFailure.into());
     }
 
-
-
     msg!("{}", series_index.amount_token);
 
     series_index.amount_token += amnt_int;
+    total_token.amount_token -= amnt_int;
     series_index.serialize(&mut &mut index_account.data.borrow_mut()[..])?;
-
+    total_token.serialize(&mut &mut total_token_account.data.borrow_mut()[..])?;
     Ok(())
 }
