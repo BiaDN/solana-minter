@@ -7,8 +7,11 @@ import {
     establishPayer,
     checkAccounts,
     testContract,
+    testContract2,
     readIndexAccount,
     readTotalTokenAccount,
+    getTimeRelease,
+    created,
 } from './amoebit_init';
 
 async function main() {
@@ -18,11 +21,14 @@ async function main() {
     // our dev wallet
     await establishPayer();
 
-    // init the index account
     await checkAccounts();
+    // init the index account
+    // await created();
 
     // run the contract
     await testContract();
+
+    await testContract2(1651846229527);
 
     // Find out how many times the contract has ran successfully
     await readIndexAccount();
@@ -30,6 +36,7 @@ async function main() {
     //
     await readTotalTokenAccount();
 
+    await getTimeRelease();
     console.log('Success');
 }
 

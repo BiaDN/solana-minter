@@ -1,5 +1,6 @@
 pub mod error;
 pub mod processor;
+pub mod instruction;
 
 use {
     crate::{error::MintError},

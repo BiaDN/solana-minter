@@ -1,6 +1,9 @@
+import * as BufferLayout from '@solana/buffer-layout';
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
+import BN from 'bn.js';
+import assert from 'assert'
 
 import os from 'os';
 import fs from 'mz/fs';
@@ -63,3 +66,39 @@ export async function createKeypairFromFile(
   const secretKey = Uint8Array.from(JSON.parse(secretKeyString));
   return Keypair.fromSecretKey(secretKey);
 }
+
+export class Numberu64 extends BN {
+  /**
+   * Convert to Buffer representation
+   */
+  toBuffer(): Buffer {
+    const a = super.toArray().reverse();
+    const b = Buffer.from(a);
+    if (b.length === 8) {
+      return b;
+    }
+    assert(b.length < 8, 'Numberu64 too large');
+
+    const zeroPad = Buffer.alloc(8);
+    b.copy(zeroPad);
+    return zeroPad;
+  }
+
+  /**
+   * Construct a Numberu64 from Buffer representation
+   */
+  static fromBuffer(buffer: Buffer): Numberu64 {
+    assert(buffer.length === 8, `Invalid buffer length: ${buffer.length}`);
+    return new Numberu64(
+      [...buffer]
+        .reverse()
+        .map(i => `00${i.toString(16)}`.slice(-2))
+        .join(''),
+      16,
+    );
+  }
+}
+
+export const uint64 = (property: string = 'uint64'): any => {
+  return BufferLayout.blob(8, property);
+};

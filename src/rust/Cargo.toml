@@ -2,10 +2,7 @@
 name = "amoebit-minter"
 version = "0.0.1"
 description = ""
-authors = ["vlawmz <@flawmz>"]
-repository = "https://github.com/Flawm/solana_minter"
 license = "GPL-2.0"
-homepage = "https://amoebits.io"
 edition = "2018"
 
 [features]
@@ -17,7 +14,6 @@ num-derive = "0.3"
 borsh = "0.9.1"
 borsh-derive = "0.9.1"
 solana-program = "=1.7.14"
-metaplex-token-metadata = { version="0.0.1", features= [ "no-entrypoint" ] }
 spl-token = { version="3.2.0", features = [ "no-entrypoint" ] }
 thiserror = "1.0"
 

@@ -1,73 +1,106 @@
+use crate::instruction::{AmoebitIndex, CountInstruction, TimeStruct};
 use {
     crate::error::MintError,
     borsh::{BorshDeserialize, BorshSerialize},
     solana_program::{
         account_info::{next_account_info, AccountInfo},
         entrypoint::ProgramResult,
-        pubkey::Pubkey,
         msg,
+        program::{invoke, invoke_signed},
+        program_error::ProgramError,
+        pubkey::Pubkey,
+        rent::Rent,
+        system_instruction,
+        system_instruction::create_account,
+        sysvar::{clock::Clock, Sysvar},
     },
 };
 
-
 use std::str;
 
-const PREFIX: &str             = "amoebit_minter";
-const OUR_WALLET: &str         = "A4LRKkEnPAK9dxrJgN7wetXmyGPKiWgprjF9Gq8aJboV";
+// const PREFIX: &str = "amoebit_minter";
+// const PREFIX_TIME: &str = "time_realease";
 
+const OUR_WALLET: &str = "69sRgm3962udozhENnTtTQUJMEHBtDQbKLUte1g9H4Hx";
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct AmoebitIndex {
-    pub amount_token: u128,
-}
+pub const LAMPORTS_PER_SOL: u64 = 1_000_000_000;
+
+#[warn(unused_must_use)]
 
 pub fn process_instruction<'a>(
     program_id: &'a Pubkey,
     accounts: &'a [AccountInfo<'a>],
-    _input: &[u8],
+    instruction_data: &[u8],
 ) -> ProgramResult {
-    let accounts_iter          = &mut accounts.iter();
+    let instruction = CountInstruction::unpack(instruction_data)?;
 
-    let index_account          = next_account_info(accounts_iter)?; // 0
-    let auth_account           = next_account_info(accounts_iter)?; // 1
-    let total_token_account    = next_account_info(accounts_iter)?; // 2
-    let payer_wallet           = next_account_info(accounts_iter)?; // 3
+    let accounts_iter = &mut accounts.iter();
 
+    let index_account = next_account_info(accounts_iter)?; // 0
+    let total_token_account = next_account_info(accounts_iter)?; // 2
+    let auth_wallet = next_account_info(accounts_iter)?; // 2
+    let payer_wallet = next_account_info(accounts_iter)?; // 3
+    let time_account = next_account_info(accounts_iter)?; // 4
 
     let mut series_index = AmoebitIndex::try_from_slice(&index_account.data.borrow())?;
-    let amnt_str = str::from_utf8(_input).unwrap();
-    let amnt_int = amnt_str.parse::<u128>().unwrap();
+
     let mut total_token = AmoebitIndex::try_from_slice(&total_token_account.data.borrow())?;
+    let mut time_set = TimeStruct::try_from_slice(&time_account.data.borrow())?;
 
-    if payer_wallet.key.to_string()        == OUR_WALLET && total_token.amount_token == 0 { 
-        total_token.amount_token = 10000000000000000;
-        total_token.serialize(&mut &mut total_token_account.data.borrow_mut()[..])?;
-        return Ok(())
+    // let timeRelease = time_set.de
+    // pub fn transfer_sol(&from,&to,lamports_to_send) -> ProgramResult{
+    //     system_instruction::transfer(from, to, lamports_to_send);
+    //     Ok(());
+    // }
+
+    match instruction {
+        CountInstruction::Index(AmoebitIndex { amount }) => {
+            if payer_wallet.key.to_string() == OUR_WALLET && total_token.amount == 0 {
+                total_token.amount = 10000000000000000;
+                total_token.serialize(&mut &mut total_token_account.data.borrow_mut()[..])?;
+
+                return Ok(());
+            }
+
+            if total_token.amount < amount {
+                return Err(MintError::TokenFailed.into());
+            }
+
+            // if auth_wallet.key
+
+            msg!("{}", series_index.amount);
+
+            msg!("{}", time_set.timeRelease);
+
+            series_index.amount += amount;
+            total_token.amount -= amount;
+
+            // invoke(
+            //     &system_instruction::transfer(
+            //         payer_wallet.key,
+            //         auth_wallet.key,
+            //         1 * LAMPORTS_PER_SOL / 1000,
+            //     ),
+            //     &[payer_wallet.clone(), auth_wallet.clone()],
+            // )?;
+
+            series_index.serialize(&mut &mut index_account.data.borrow_mut()[..])?;
+            total_token.serialize(&mut &mut total_token_account.data.borrow_mut()[..])?;
+            return Ok(());
+        }
+        CountInstruction::Time(TimeStruct { timeRelease }) => {
+            time_set.timeRelease = timeRelease;
+            time_set.serialize(&mut &mut time_account.data.borrow_mut()[..])?;
+            return Ok(());
+        }
+        CountInstruction::Create(AmoebitIndex { amount }) => {
+            // if total_token.amount
+            total_token.amount = 10000000000000000;
+            total_token.serialize(&mut &mut total_token_account.data.borrow_mut()[..])?;
+
+            return Ok(());
+        }
     }
 
-    if total_token.amount_token < amnt_int {
-        return Err(MintError::TokenFailed.into())
-    }       
-
-    let auth_seeds = &[
-        PREFIX.as_bytes(),
-        program_id.as_ref(),
-        PREFIX.as_bytes(),
-    ];
-
-    let (auth_key, bump_seed) = 
-        Pubkey::find_program_address(auth_seeds, program_id);
-
-    // safety check (may be not needed because tx will fail(?))
-    if auth_key != *auth_account.key {
-        return Err(MintError::AuthKeyFailure.into());
-    }
-
-    msg!("{}", series_index.amount_token);
-
-    series_index.amount_token += amnt_int;
-    total_token.amount_token -= amnt_int;
-    series_index.serialize(&mut &mut index_account.data.borrow_mut()[..])?;
-    total_token.serialize(&mut &mut total_token_account.data.borrow_mut()[..])?;
     Ok(())
 }
