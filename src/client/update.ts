@@ -16,6 +16,7 @@ import * as borsh from 'borsh';
 import * as BufferLayout from '@solana/buffer-layout';
 import { Buffer } from 'buffer';
 import { getPayer, getRpcUrl, createKeypairFromFile, uint64, Numberu64 } from './utils';
+import assert from 'assert'
 
 /**
  * Connection to the network
@@ -81,6 +82,12 @@ const INDEX_SIZE = borsh.serialize(
     new AmoebitIndexAccount(),
 ).length;
 
+const SEED_USER = 'userSeed4'
+const SEED_TOTAL = 'totalSeed4'
+const SEED_TIME = 'timeSeed4'
+// const SEED_USER = 'userSeed'
+
+
 class TimeAccount {
     timeRelease = 0;
     constructor(fields: { timeRelease: number } | undefined = undefined) {
@@ -98,11 +105,6 @@ const TIME_SIZE = borsh.serialize(
     TimeAccountSchema,
     new TimeAccount(),
 ).length;
-
-// const INDEX_SIZE_ADMIN = borsh.serialize(
-//     AmoebitIndexSchema,
-//     new AmoebitIndexAccount(),
-// ).length
 
 export async function establishConnection(): Promise<void> {
     const rpcUrl = await getRpcUrl();
@@ -146,69 +148,112 @@ export async function establishPayer(): Promise<void> {
     );
 }
 
-/**
- * Make sure the accounts for the program are available
- */
-export async function checkAccounts(): Promise<void> {
-    // Read program id from keypair file
+const initializeTotalAccountInstruction = (amount: number): Buffer => {
+    const datalayout = BufferLayout.struct([
+        BufferLayout.u8('instruction'),
+        uint64('amount')
+    ])
+    const data = Buffer.alloc(datalayout.span);
+    datalayout.encode(
+        {
+            instruction: 2,
+            amount: new Numberu64(amount).toBuffer()
+        },
+        data
+    );
+    console.log('data initializeTotalAccountInstruction', data);
+    console.log(data.toString(), 'string');
+    return data;
+}
+
+const setTimeReleaseInstruction = (timeRelease: number): Buffer => {
+    const datalayout = BufferLayout.struct([
+        BufferLayout.u8('instruction'),
+        uint64('timeRelease')
+    ])
+    const data = Buffer.alloc(datalayout.span);
+    datalayout.encode(
+        {
+            instruction: 1,
+            timeRelease: new Numberu64(timeRelease).toBuffer()
+        },
+        data
+    );
+    console.log('data setTimeReleaseInstruction', data);
+    console.log(data.toString(), 'string');
+    return data;
+}
+
+const playerBuyTokenAmountInstruction = (amount: number): Buffer => {
+    const datalayout = BufferLayout.struct([
+        BufferLayout.u8('instruction'),
+        uint64('amount')
+    ])
+    const data = Buffer.alloc(datalayout.span);
+    datalayout.encode(
+        {
+            instruction: 0,
+            amount: new Numberu64(amount).toBuffer()
+        },
+        data
+    );
+    console.log('data playerBuyTokenAmountInstruction', data);
+    console.log(data.toString(), 'string');
+    return data;
+}
+
+const playerClaimInstruction = (amount: number): Buffer => {
+    const datalayout = BufferLayout.struct([
+        BufferLayout.u8('instruction'),
+        uint64('amount')
+    ])
+    const data = Buffer.alloc(datalayout.span);
+    datalayout.encode(
+        {
+            instruction: 3,
+            amount: new Numberu64(amount).toBuffer()
+        },
+        data
+    );
+    console.log('data playerClaimInstruction', data);
+    console.log(data.toString(), 'string');
+    return data;
+}
+
+export async function initializeTotalAccount(amount: number): Promise<void> {
     const programKeypair = await createKeypairFromFile(PROGRAM_KEYPAIR_PATH);
     programId = programKeypair.publicKey;
 
-    // Check if the program has been deployed
-    const programInfo = await connection.getAccountInfo(programId);
-    if (programInfo === null) {
-        if (fs.existsSync(PROGRAM_SO_PATH)) {
-            throw new Error(
-                'Program needs to be deployed with `solana program deploy dist/program/test.so`',
-            );
-        } else {
-            throw new Error('Program needs to be built and deployed');
-        }
-    } else if (!programInfo.executable) {
-        throw new Error(`Program is not executable`);
-    }
-    console.log(`Using program ${programId.toBase58()}`);
-
-    // Derive the address (public key) of the account from the program so that it's easy to find later.
-    const INDEX_SEED = 'seedIndex24';
-    const INDEX_SEED_TIME = 'seedTime24';
-    const INDEX_SEED_ADMIN = 'seedAdmin24';
-
-    indexPubkey = await PublicKey.createWithSeed(
-        payer.publicKey,
-        INDEX_SEED,
-        programId,
-    );
-
-    time_key = await PublicKey.createWithSeed(
-        payer.publicKey,
-        INDEX_SEED_TIME,
-        programId,
-    );
-
     totalTokenPubkey = await PublicKey.createWithSeed(
         payer.publicKey,
-        INDEX_SEED_ADMIN,
+        SEED_TOTAL,
         programId,
     );
-
-    // Check if the account has already been created
-    indexAccount = await connection.getAccountInfo(indexPubkey);
-
-    timeAccount = await connection.getAccountInfo(time_key);
-
     totalAccount = await connection.getAccountInfo(totalTokenPubkey);
 
+    let account_0 = { pubkey: totalTokenPubkey, isSigner: false, isWritable: true },
+        account_1 = { pubkey: new PublicKey('A4LRKkEnPAK9dxrJgN7wetXmyGPKiWgprjF9Gq8aJboV'), isSigner: false, isWritable: true },
+        account_2 = { pubkey: payer.publicKey, isSigner: false, isWritable: true };
 
-    if (indexAccount === null) {
+
+
+    let instruction = new TransactionInstruction({
+        keys: [account_0, account_1, account_2],
+        programId,
+        data: initializeTotalAccountInstruction(amount),
+    });
+    console.log('init instruction 244');
+
+    if (totalAccount === null) {
         console.log(
             'Creating account',
-            indexPubkey.toBase58(),
-            'to count mint index',
+            totalTokenPubkey.toBase58(),
+            'to save total current',
         );
         const lamports = await connection.getMinimumBalanceForRentExemption(
             INDEX_SIZE,
         );
+        console.log('init instruction 255');
 
 
         const transaction = new Transaction().add(
@@ -216,21 +261,42 @@ export async function checkAccounts(): Promise<void> {
                 basePubkey: payer.publicKey,
                 fromPubkey: payer.publicKey,
                 lamports,
-                newAccountPubkey: indexPubkey,
+                newAccountPubkey: totalTokenPubkey,
                 programId: programId,
-                seed: INDEX_SEED,
+                seed: SEED_TOTAL,
                 space: INDEX_SIZE,
             }),
+            instruction
         );
         await sendAndConfirmTransaction(connection, transaction, [payer]);
-        console.log('sent1')
+        console.log('sent total init')
+
     }
+}
+
+export async function setTimeRelease(timeRelease: number): Promise<void> {
+    time_key = await PublicKey.createWithSeed(
+        payer.publicKey,
+        SEED_TIME,
+        programId,
+    );
+    timeAccount = await connection.getAccountInfo(time_key);
+
+    let account_0 = { pubkey: time_key, isSigner: false, isWritable: true },
+        account_1 = { pubkey: payer.publicKey, isSigner: false, isWritable: true };
+
+
+    let instruction = new TransactionInstruction({
+        keys: [account_0, account_1],
+        programId,
+        data: setTimeReleaseInstruction(timeRelease),
+    });
 
     if (timeAccount === null) {
         console.log(
             'Creating account',
             time_key.toBase58(),
-            'to save time',
+            'to save save time',
         );
         const lamports = await connection.getMinimumBalanceForRentExemption(
             TIME_SIZE,
@@ -244,23 +310,47 @@ export async function checkAccounts(): Promise<void> {
                 lamports,
                 newAccountPubkey: time_key,
                 programId: programId,
-                seed: INDEX_SEED_TIME,
+                seed: SEED_TIME,
                 space: TIME_SIZE,
             }),
+            instruction
         );
         await sendAndConfirmTransaction(connection, transaction, [payer]);
-        console.log('sent2')
-
+        console.log('send set time')
     }
+}
 
-    if (totalAccount === null) {
+
+export async function playerBuyTokenAmount(amount: number): Promise<void> {
+    assert(amount <= 1000000,'Amount to buy must be less than 1000000');
+    indexPubkey = await PublicKey.createWithSeed(
+        payer.publicKey,
+        SEED_USER,
+        programId,
+    );
+    indexAccount = await connection.getAccountInfo(indexPubkey);
+
+    let account_0 = { pubkey: indexPubkey, isSigner: false, isWritable: true },
+        account_1 = { pubkey: totalTokenPubkey, isSigner: false, isWritable: true },
+        account_2 = { pubkey: new PublicKey('A4LRKkEnPAK9dxrJgN7wetXmyGPKiWgprjF9Gq8aJboV'), isSigner: false, isWritable: true },
+        account_3 = { pubkey: payer.publicKey, isSigner: false, isWritable: true },
+        account_4 = { pubkey: time_key, isSigner: false, isWritable: true };
+
+
+    let instruction = new TransactionInstruction({
+        keys: [account_0, account_1, account_2, account_3, account_4],
+        programId,
+        data: playerBuyTokenAmountInstruction(amount * 1000000000),
+    });
+
+    if (indexAccount === null) {
         console.log(
             'Creating account',
-            totalTokenPubkey.toBase58(),
-            'to count total',
+            indexPubkey.toBase58(),
+            'to buy token',
         );
         const lamports = await connection.getMinimumBalanceForRentExemption(
-            TIME_SIZE,
+            INDEX_SIZE,
         );
 
 
@@ -269,174 +359,50 @@ export async function checkAccounts(): Promise<void> {
                 basePubkey: payer.publicKey,
                 fromPubkey: payer.publicKey,
                 lamports,
-                newAccountPubkey: totalTokenPubkey,
+                newAccountPubkey: indexPubkey,
                 programId: programId,
-                seed: INDEX_SEED_ADMIN,
-                space: TIME_SIZE,
+                seed: SEED_USER,
+                space: INDEX_SIZE,
             }),
+            instruction
         );
         await sendAndConfirmTransaction(connection, transaction, [payer]);
-        console.log('sent3')
+        console.log('send player buy')
+    } else {
+
+        const transaction = new Transaction().add(
+            instruction
+        );
+
+        await sendAndConfirmTransaction(connection, transaction, [payer]);
+        console.log('send player buy')
 
     }
 
+    // const lamports = await connection.getMinimumBalanceForRentExemption(
+    //     INDEX_SIZE,
+    // );
+
 }
 
-export function firstIntruction(): Buffer {
-    const datalayout = BufferLayout.struct([
-        BufferLayout.u8('instruction'),
-        uint64('amount')
-    ]);
-    const data = Buffer.alloc(datalayout.span);
-    console.log({ data, datalayout });
-    datalayout.encode(
-        {
-            instruction: 0,
-            amount: new Numberu64(4000).toBuffer()
-        },
-        data
-    );
-    console.log('data Layout first', data);
-    console.log(data.toString(), 'string');
-    return data;
-}
+export async function claimForPlayer(amount: number): Promise<void> {
 
-export function secondIntruction(timeRelease: number): Buffer {
-    const datalayout = BufferLayout
-        .struct([
-            BufferLayout.u8('instruction'),
-            uint64('timeRelease')
-        ])
-    const data = Buffer.alloc(datalayout.span);
-    datalayout.encode(
-        {
-            instruction: 1,
-            timeRelease: new Numberu64(timeRelease).toBuffer()
-        },
-        data
-    );
-    console.log('data Layout Second', data);
-    console.log(data.toString(), 'string');
-    return data;
-}
-
-export function thirstIntruction(): Buffer {
-    const datalayout = BufferLayout.struct([BufferLayout.u8('instruction')])
-    const data = Buffer.alloc(datalayout.span);
-    datalayout.encode(
-        {
-            instruction: 2,
-        },
-        data
-    );
-    console.log('data Layout Thirst', data);
-    console.log(data.toString(), 'string');
-    return data;
-}
-
-export async function created(): Promise<void> {
-    // await checkAccounts();
     let account_0 = { pubkey: indexPubkey, isSigner: false, isWritable: true },
-        account_9 = { pubkey: new PublicKey('A4LRKkEnPAK9dxrJgN7wetXmyGPKiWgprjF9Gq8aJboV'), isSigner: false, isWritable: true },
-        account_10 = { pubkey: totalTokenPubkey, isSigner: false, isWritable: true },
-        account_11 = { pubkey: payer.publicKey, isSigner: false, isWritable: true },
-        account_12 = { pubkey: time_key, isSigner: false, isWritable: true };
-
+        account_1 = { pubkey: payer.publicKey, isSigner: false, isWritable: true };
 
 
     let instruction = new TransactionInstruction({
-        keys: [account_0, account_10, account_9, account_11, account_12],
+        keys: [account_0, account_1],
         programId,
-        data: thirstIntruction(),
+        data: playerClaimInstruction(amount*1000000000),
     });
-    console.log(firstIntruction())
-    console.log('359')
 
-    let transaction = new Transaction().add(
-        instruction,
-    );
-    console.log('364')
-    let a = await sendAndConfirmTransaction(
-        connection,
-        transaction,
-        [payer]
-        , { skipPreflight: true }
-    );
+    const transaction = new Transaction().add(instruction);
 
-    console.log(a, 'send sucessful transaction');
+    await sendAndConfirmTransaction(connection, transaction, [payer]);
+    console.log('send player claimed')
+
 }
-
-
-export async function testContract(): Promise<void> {
-
-    // accounts
-    let account_0 = { pubkey: indexPubkey, isSigner: false, isWritable: true },
-        account_10 = { pubkey: totalTokenPubkey, isSigner: false, isWritable: true },
-        account_9 = { pubkey: new PublicKey('A4LRKkEnPAK9dxrJgN7wetXmyGPKiWgprjF9Gq8aJboV'), isSigner: false, isWritable: true },
-        account_11 = { pubkey: payer.publicKey, isSigner: false, isWritable: true },
-        account_12 = { pubkey: time_key, isSigner: false, isWritable: true };
-
-
-
-    let instruction = new TransactionInstruction({
-        keys: [account_0, account_10, account_9, account_11, account_12],
-        programId,
-        data: firstIntruction(),
-    });
-    console.log(firstIntruction())
-    console.log('359')
-
-    let transaction = new Transaction().add(
-        instruction,
-    );
-    console.log('364')
-    let a = await sendAndConfirmTransaction(
-        connection,
-        transaction,
-        [payer]
-        , { skipPreflight: true }
-    );
-
-    console.log(indexPubkey.toBase58(), time_key.toBase58(), totalTokenPubkey.toBase58());
-    console.log(a, 'send sucessful transaction');
-}
-
-export async function testContract2(timeRelease: number): Promise<void> {
-
-    // accounts
-    let account_0 = { pubkey: indexPubkey, isSigner: false, isWritable: true },
-        account_10 = { pubkey: totalTokenPubkey, isSigner: false, isWritable: true },
-        account_9 = { pubkey: new PublicKey('A4LRKkEnPAK9dxrJgN7wetXmyGPKiWgprjF9Gq8aJboV'), isSigner: false, isWritable: true },
-        account_11 = { pubkey: payer.publicKey, isSigner: false, isWritable: true },
-        account_12 = { pubkey: time_key, isSigner: false, isWritable: true };
-
-
-
-    let instruction = new TransactionInstruction({
-        keys: [account_0, account_10, account_9, account_11, account_12],
-        programId,
-        data: secondIntruction(timeRelease),
-    });
-    console.log('392')
-
-
-    let transaction = new Transaction().add(
-        instruction,
-    );
-    console.log('398')
-
-    let a = await sendAndConfirmTransaction(
-        connection,
-        transaction,
-        [payer]
-        , { skipPreflight: true }
-    );
-
-    console.log(indexPubkey.toBase58(), time_key.toBase58(), totalTokenPubkey.toBase58());
-    console.log(a, 'send sucessful transaction');
-}
-
-// export async function 
 
 export async function getTimeRelease(): Promise<void> {
     const accountInfoTime = await connection.getAccountInfo(time_key);

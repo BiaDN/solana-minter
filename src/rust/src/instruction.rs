@@ -19,6 +19,7 @@ pub enum CountInstruction {
     Index(AmoebitIndex),
     Time(TimeStruct),
     Create(AmoebitIndex),
+    Claim(AmoebitIndex)
 }
 
 impl CountInstruction {
@@ -38,10 +39,14 @@ impl CountInstruction {
                 Self::Time(TimeStruct { timeRelease })
             }
             2 => {
-                // let (amount_total, rest) = Self::unpack_u64(rest)?;
+                let (amount_total, rest) = Self::unpack_u64(rest)?;
                 Self::Create(AmoebitIndex {
-                    amount: 10000000000000000,
+                    amount: amount_total*1000000000,
                 })
+            }
+            3 => {
+                let (amount, rest) = Self::unpack_u64(rest)?;
+                Self::Claim(AmoebitIndex { amount })
             }
             _ => return Err(ProgramError::InvalidArgument),
         })
