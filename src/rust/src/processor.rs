@@ -1,17 +1,18 @@
 // use solana_sdk::commitment_config::CommitmentConfig;
 // use solana_client::rpc_client::RpcClient;
 
-use crate::instruction::{AmoebitIndex, CountInstruction, TimeStruct};
+use crate::instruction::{AmoebitIndex, BuyAmountIndex, CountInstruction, TimeStruct};
 use std::convert::TryInto;
 use {
     borsh::{BorshDeserialize, BorshSerialize},
     solana_program::{
         account_info::{next_account_info, AccountInfo},
         entrypoint::ProgramResult,
+        msg, program,
+        program_error::ProgramError,
         pubkey::Pubkey,
-        sysvar::{clock::Clock, Sysvar},
         system_instruction,
-        program
+        sysvar::{clock::Clock, Sysvar},
     },
 };
 
@@ -57,70 +58,17 @@ pub fn process_instruction<'a>(
     // }
 
     match instruction {
-        CountInstruction::Index(AmoebitIndex { amount }) => {
-            return count_amount_player(program_id, accounts, amount, instruction_data);
-            // if payer_wallet.key.to_string() == OUR_WALLET && total_token.amount == 0 {
-            //     total_token.amount = 10000000000000000;
-            //     total_token.serialize(&mut &mut total_token_account.data.borrow_mut()[..])?;
-
-            //     return Ok(());
-            // }
-
-            // if total_token.amount < amount {
-            //     return Err(MintError::TokenFailed.into());
-            // }
-
-            // // if auth_wallet.key
-
-            // msg!("{}", series_index.amount);
-
-            // msg!("{}", time_set.timeRelease);
-
-            // series_index.amount += amount;
-            // total_token.amount -= amount;
-
-            // // invoke(
-            // //     &system_instruction::transfer(
-            // //         payer_wallet.key,
-            // //         auth_wallet.key,
-            // //         1 * LAMPORTS_PER_SOL / 1000,
-            // //     ),
-            // //     &[payer_wallet.clone(), auth_wallet.clone()],
-            // // )?;
-
-            // // let _tx = system_instruction::transfer(
-            // //     payer_wallet.key,
-            // //     auth_wallet.key,
-            // //     1 * LAMPORTS_PER_SOL / 10,
-            // // );
-
-            // **payer_wallet.try_borrow_mut_lamports()? -= 1 * LAMPORTS_PER_SOL / 10;
-            // **auth_wallet.try_borrow_mut_lamports()? += 1 * LAMPORTS_PER_SOL / 10;
-
-            // // let recent_blockhash = connection.get_latest_blockhash().expect("Failed to get latest blockhash.");
-
-            // series_index.serialize(&mut &mut index_account.data.borrow_mut()[..])?;
-            // total_token.serialize(&mut &mut total_token_account.data.borrow_mut()[..])?;
-            // return Ok(());
+        CountInstruction::Buy(BuyAmountIndex { amount, amount_sol }) => {
+            return count_amount_player(program_id, accounts, amount_sol, amount, instruction_data);
         }
         CountInstruction::Time(TimeStruct { timeRelease }) => {
             return set_time_release(program_id, accounts, timeRelease, instruction_data);
-            // time_set.timeRelease = timeRelease;
-            // time_set.serialize(&mut &mut time_account.data.borrow_mut()[..])?;
-            // return Ok(());
         }
         CountInstruction::Create(AmoebitIndex { amount }) => {
             return init_account_total(program_id, accounts, amount, instruction_data);
-            // if total_token.amount
-            // total_token.amount = 10000000000000000;
-            // total_token.serialize(&mut &mut total_token_account.data.borrow_mut()[..])?;
-
-            // return Ok(());
         }
         CountInstruction::Claim(AmoebitIndex { amount }) => {
             return claim_token_amount(program_id, accounts, amount, instruction_data);
-            // series_index.amount -= amount;
-            // series_index.serialize(&mut &mut index_account.data.borrow_mut()[..])?;
         }
     }
 
@@ -131,6 +79,7 @@ fn count_amount_player(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     amount: u64,
+    amount_sol: u64,
     instruction_data: &[u8],
 ) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
@@ -141,6 +90,26 @@ fn count_amount_player(
     let payer_wallet = next_account_info(accounts_iter)?; // 3
     let time_account = next_account_info(accounts_iter)?; // 4
     let sys_account = next_account_info(accounts_iter)?;
+
+    if index_account.owner != program_id {
+        msg!("index_account isn't owned by program");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if total_token_account.owner != program_id {
+        msg!("total_token_account isn't owned by program");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if time_account.owner != program_id {
+        msg!("time_account isn't owned by program");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if !payer_wallet.is_signer {
+        msg!("payer_wallet should be signer");
+        return Err(ProgramError::IncorrectProgramId);
+    }
 
     let mut series_index = AmoebitIndex::try_from_slice(&index_account.data.borrow())?;
     let mut time_set = TimeStruct::try_from_slice(&time_account.data.borrow())?;
@@ -154,7 +123,7 @@ fn count_amount_player(
     }
 
     program::invoke(
-        &system_instruction::transfer(&payer_wallet.key, &auth_wallet.key, 1000),
+        &system_instruction::transfer(&payer_wallet.key, &auth_wallet.key, amount_sol),
         &[
             payer_wallet.clone(),
             auth_wallet.clone(),
@@ -164,11 +133,6 @@ fn count_amount_player(
 
     series_index.amount += amount;
     total_token.amount -= amount;
-
-    // **payer_wallet.try_borrow_mut_lamports()? -= 1 / 10;
-    // **auth_wallet.try_borrow_mut_lamports()? += 1 / 10;
-
-    // let recent_blockhash = connection.get_latest_blockhash().expect("Failed to get latest blockhash.");
 
     series_index.serialize(&mut &mut index_account.data.borrow_mut()[..])?;
     total_token.serialize(&mut &mut total_token_account.data.borrow_mut()[..])?;
@@ -187,6 +151,16 @@ fn init_account_total(
     let total_token_account = next_account_info(accounts_iter)?; // 2
     let auth_wallet = next_account_info(accounts_iter)?; // 2
     let payer_wallet = next_account_info(accounts_iter)?; // 3
+
+    if total_token_account.owner != program_id {
+        msg!("total_token_account isn't owned by program");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if !payer_wallet.is_signer {
+        msg!("payer_wallet should be signer");
+        return Err(ProgramError::IncorrectProgramId);
+    }
 
     let mut total_token = AmoebitIndex::try_from_slice(&total_token_account.data.borrow())?;
     if payer_wallet.key.to_string() == OUR_WALLET && total_token.amount == 0 {
@@ -207,6 +181,16 @@ fn set_time_release(
     let time_account = next_account_info(accounts_iter)?; // 4
     let payer_wallet = next_account_info(accounts_iter)?; // 3
 
+    if time_account.owner != program_id {
+        msg!("time_account isn't owned by program");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if !payer_wallet.is_signer {
+        msg!("payer_wallet should be signer");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
     let mut time_set = TimeStruct::try_from_slice(&time_account.data.borrow())?;
 
     time_set.timeRelease = timeRelease;
@@ -225,6 +209,16 @@ fn claim_token_amount(
 
     let index_account = next_account_info(accounts_iter)?; // 0
     let payer_wallet = next_account_info(accounts_iter)?; // 3
+
+    if index_account.owner != program_id {
+        msg!("index_account isn't owned by program");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if !payer_wallet.is_signer {
+        msg!("payer_wallet should be signer");
+        return Err(ProgramError::IncorrectProgramId);
+    }
 
     let mut series_index = AmoebitIndex::try_from_slice(&index_account.data.borrow())?;
 

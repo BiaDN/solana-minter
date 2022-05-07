@@ -13,13 +13,19 @@ pub struct TimeStruct {
 pub struct AmoebitIndex {
     pub amount: u64,
 }
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+
+pub struct BuyAmountIndex {
+    pub amount: u64,
+    pub amount_sol: u64,
+}
 #[derive(Debug)]
 
 pub enum CountInstruction {
-    Index(AmoebitIndex),
+    Buy(BuyAmountIndex),
     Time(TimeStruct),
     Create(AmoebitIndex),
-    Claim(AmoebitIndex)
+    Claim(AmoebitIndex),
 }
 
 impl CountInstruction {
@@ -31,7 +37,11 @@ impl CountInstruction {
         Ok(match tag {
             0 => {
                 let (amount, rest) = Self::unpack_u64(rest)?;
-                Self::Index(AmoebitIndex { amount })
+                let (amount_sol, rest) = Self::unpack_u64(rest)?;
+                Self::Buy(BuyAmountIndex {
+                    amount,
+                    amount_sol,
+                })
             }
             1 => {
                 let (timeRelease, rest) = Self::unpack_u64(rest)?;
@@ -41,7 +51,7 @@ impl CountInstruction {
             2 => {
                 let (amount_total, rest) = Self::unpack_u64(rest)?;
                 Self::Create(AmoebitIndex {
-                    amount: amount_total*1000000000,
+                    amount: amount_total * 1000000000,
                 })
             }
             3 => {

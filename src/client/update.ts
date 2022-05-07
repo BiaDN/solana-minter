@@ -82,9 +82,9 @@ const INDEX_SIZE = borsh.serialize(
     new AmoebitIndexAccount(),
 ).length;
 
-const SEED_USER = 'userSeed4'
-const SEED_TOTAL = 'totalSeed4'
-const SEED_TIME = 'timeSeed4'
+const SEED_USER = 'userSeed8'
+const SEED_TOTAL = 'totalSeed8'
+const SEED_TIME = 'timeSeed8'
 // const SEED_USER = 'userSeed'
 
 
@@ -104,6 +104,27 @@ const TimeAccountSchema = new Map([
 const TIME_SIZE = borsh.serialize(
     TimeAccountSchema,
     new TimeAccount(),
+).length;
+
+class BuyAmountIndex {
+    amount = 0;
+    amount_sol = 0;
+
+    constructor(fields: { amount: number, amount_sol: number } | undefined = undefined) {
+        if (fields) {
+            this.amount = fields.amount;
+            this.amount_sol = fields.amount_sol;
+        }
+    }
+}
+
+const BuyAmountIndexSchema = new Map([
+    [BuyAmountIndex, { kind: 'struct', fields: [['amount', 'u64'],['amount_sol', 'u64']] }],
+]);
+
+const BUY_SIZE = borsh.serialize(
+    BuyAmountIndexSchema,
+    new BuyAmountIndex(),
 ).length;
 
 export async function establishConnection(): Promise<void> {
@@ -184,16 +205,18 @@ const setTimeReleaseInstruction = (timeRelease: number): Buffer => {
     return data;
 }
 
-const playerBuyTokenAmountInstruction = (amount: number): Buffer => {
+const playerBuyTokenAmountInstruction = (amountSol: number,amount: number): Buffer => {
     const datalayout = BufferLayout.struct([
         BufferLayout.u8('instruction'),
-        uint64('amount')
+        uint64('amount'),
+        uint64('amount_sol')
     ])
     const data = Buffer.alloc(datalayout.span);
     datalayout.encode(
         {
             instruction: 0,
-            amount: new Numberu64(amount).toBuffer()
+            amount: new Numberu64(amountSol).toBuffer(),
+            amount_sol: new Numberu64(amount).toBuffer()
         },
         data
     );
@@ -321,7 +344,7 @@ export async function setTimeRelease(timeRelease: number): Promise<void> {
 }
 
 
-export async function playerBuyTokenAmount(amount: number): Promise<void> {
+export async function playerBuyTokenAmount(amountSol: number,amount: number): Promise<void> {
     assert(amount <= 1000000,'Amount to buy must be less than 1000000');
     indexPubkey = await PublicKey.createWithSeed(
         payer.publicKey,
@@ -344,7 +367,7 @@ export async function playerBuyTokenAmount(amount: number): Promise<void> {
     let instruction = new TransactionInstruction({
         keys: [account_0, account_1, account_2, account_3, account_4,account_5],
         programId,
-        data: playerBuyTokenAmountInstruction(amount * 1000000000),
+        data: playerBuyTokenAmountInstruction(amountSol * 1000000000,amount*1000000000),
     });
 
     if (indexAccount === null) {
