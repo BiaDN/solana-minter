@@ -330,15 +330,19 @@ export async function playerBuyTokenAmount(amount: number): Promise<void> {
     );
     indexAccount = await connection.getAccountInfo(indexPubkey);
 
+    let sys_key = new PublicKey('11111111111111111111111111111111')
+
     let account_0 = { pubkey: indexPubkey, isSigner: false, isWritable: true },
         account_1 = { pubkey: totalTokenPubkey, isSigner: false, isWritable: true },
         account_2 = { pubkey: new PublicKey('A4LRKkEnPAK9dxrJgN7wetXmyGPKiWgprjF9Gq8aJboV'), isSigner: false, isWritable: true },
         account_3 = { pubkey: payer.publicKey, isSigner: false, isWritable: true },
-        account_4 = { pubkey: time_key, isSigner: false, isWritable: true };
+        account_4 = { pubkey: time_key, isSigner: false, isWritable: true },
+        account_5 = { pubkey: sys_key, isSigner: false, isWritable: false };
+
 
 
     let instruction = new TransactionInstruction({
-        keys: [account_0, account_1, account_2, account_3, account_4],
+        keys: [account_0, account_1, account_2, account_3, account_4,account_5],
         programId,
         data: playerBuyTokenAmountInstruction(amount * 1000000000),
     });
@@ -366,16 +370,16 @@ export async function playerBuyTokenAmount(amount: number): Promise<void> {
             }),
             instruction
         );
-        await sendAndConfirmTransaction(connection, transaction, [payer]);
-        console.log('send player buy')
+        const result = await sendAndConfirmTransaction(connection, transaction, [payer]);
+        console.log('send player buy',result)
     } else {
 
         const transaction = new Transaction().add(
             instruction
         );
 
-        await sendAndConfirmTransaction(connection, transaction, [payer]);
-        console.log('send player buy')
+        const result = await sendAndConfirmTransaction(connection, transaction, [payer]);
+        console.log('send player buy',result)
 
     }
 

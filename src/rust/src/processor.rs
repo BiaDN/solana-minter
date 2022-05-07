@@ -10,6 +10,8 @@ use {
         entrypoint::ProgramResult,
         pubkey::Pubkey,
         sysvar::{clock::Clock, Sysvar},
+        system_instruction,
+        program
     },
 };
 
@@ -138,6 +140,7 @@ fn count_amount_player(
     let auth_wallet = next_account_info(accounts_iter)?; // 2
     let payer_wallet = next_account_info(accounts_iter)?; // 3
     let time_account = next_account_info(accounts_iter)?; // 4
+    let sys_account = next_account_info(accounts_iter)?;
 
     let mut series_index = AmoebitIndex::try_from_slice(&index_account.data.borrow())?;
     let mut time_set = TimeStruct::try_from_slice(&time_account.data.borrow())?;
@@ -149,11 +152,21 @@ fn count_amount_player(
     {
         return panic!("Time is end or not enough total_token");
     }
+
+    program::invoke(
+        &system_instruction::transfer(&payer_wallet.key, &auth_wallet.key, 1000),
+        &[
+            payer_wallet.clone(),
+            auth_wallet.clone(),
+            sys_account.clone(),
+        ],
+    )?;
+
     series_index.amount += amount;
     total_token.amount -= amount;
 
-    **payer_wallet.try_borrow_mut_lamports()? -= 1 / 10;
-    **auth_wallet.try_borrow_mut_lamports()? += 1 / 10;
+    // **payer_wallet.try_borrow_mut_lamports()? -= 1 / 10;
+    // **auth_wallet.try_borrow_mut_lamports()? += 1 / 10;
 
     // let recent_blockhash = connection.get_latest_blockhash().expect("Failed to get latest blockhash.");
 
