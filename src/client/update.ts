@@ -414,11 +414,13 @@ export async function playerBuyTokenAmount(amountSol: number,amount: number): Pr
 export async function claimForPlayer(): Promise<void> {
 
     let account_0 = { pubkey: indexPubkey, isSigner: false, isWritable: true },
-        account_1 = { pubkey: payer.publicKey, isSigner: false, isWritable: true };
+        account_1 = { pubkey: payer.publicKey, isSigner: false, isWritable: true },
+        account_2 = { pubkey: time_key, isSigner: false, isWritable: true };
+
 
 
     let instruction = new TransactionInstruction({
-        keys: [account_0, account_1],
+        keys: [account_0, account_1,account_2],
         programId,
         data: playerClaimInstruction(),
     });

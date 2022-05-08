@@ -209,6 +209,7 @@ fn claim_token_amount(
 
     let index_account = next_account_info(accounts_iter)?; // 0
     let payer_wallet = next_account_info(accounts_iter)?; // 3
+    let time_account = next_account_info(accounts_iter)?; // 3
 
     if index_account.owner != program_id {
         msg!("index_account isn't owned by program");
@@ -221,6 +222,14 @@ fn claim_token_amount(
     }
 
     let mut series_index = AmoebitIndex::try_from_slice(&index_account.data.borrow())?;
+    let mut time_set = TimeStruct::try_from_slice(&time_account.data.borrow())?;
+
+    if time_set.timeRelease > 0
+        && time_set.timeRelease > Clock::get().unwrap().unix_timestamp.try_into().unwrap()
+    {
+        msg!("Time is end or not enough total_token");
+        return Err(ProgramError::UnsupportedSysvar);
+    }
 
     series_index.amount = amount;
     series_index.serialize(&mut &mut index_account.data.borrow_mut()[..])?;
