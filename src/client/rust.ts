@@ -27,7 +27,7 @@ async function main() {
 
     await playerBuyTokenAmount(0.3,2.5);
 
-    // await claimForPlayer(1);
+    await claimForPlayer();
     
     await readIndexAccount();
 

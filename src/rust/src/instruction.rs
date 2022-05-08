@@ -38,10 +38,7 @@ impl CountInstruction {
             0 => {
                 let (amount, rest) = Self::unpack_u64(rest)?;
                 let (amount_sol, rest) = Self::unpack_u64(rest)?;
-                Self::Buy(BuyAmountIndex {
-                    amount,
-                    amount_sol,
-                })
+                Self::Buy(BuyAmountIndex { amount, amount_sol })
             }
             1 => {
                 let (timeRelease, rest) = Self::unpack_u64(rest)?;
@@ -55,8 +52,8 @@ impl CountInstruction {
                 })
             }
             3 => {
-                let (amount, rest) = Self::unpack_u64(rest)?;
-                Self::Claim(AmoebitIndex { amount })
+                // let (amount, rest) = Self::unpack_u64(rest)?;
+                Self::Claim(AmoebitIndex { amount: 0 })
             }
             _ => return Err(ProgramError::InvalidArgument),
         })

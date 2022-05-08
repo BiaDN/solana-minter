@@ -225,7 +225,7 @@ const playerBuyTokenAmountInstruction = (amountSol: number,amount: number): Buff
     return data;
 }
 
-const playerClaimInstruction = (amount: number): Buffer => {
+const playerClaimInstruction = (): Buffer => {
     const datalayout = BufferLayout.struct([
         BufferLayout.u8('instruction'),
         uint64('amount')
@@ -234,7 +234,6 @@ const playerClaimInstruction = (amount: number): Buffer => {
     datalayout.encode(
         {
             instruction: 3,
-            amount: new Numberu64(amount).toBuffer()
         },
         data
     );
@@ -412,7 +411,7 @@ export async function playerBuyTokenAmount(amountSol: number,amount: number): Pr
 
 }
 
-export async function claimForPlayer(amount: number): Promise<void> {
+export async function claimForPlayer(): Promise<void> {
 
     let account_0 = { pubkey: indexPubkey, isSigner: false, isWritable: true },
         account_1 = { pubkey: payer.publicKey, isSigner: false, isWritable: true };
@@ -421,7 +420,7 @@ export async function claimForPlayer(amount: number): Promise<void> {
     let instruction = new TransactionInstruction({
         keys: [account_0, account_1],
         programId,
-        data: playerClaimInstruction(amount*1000000000),
+        data: playerClaimInstruction(),
     });
 
     const transaction = new Transaction().add(instruction);

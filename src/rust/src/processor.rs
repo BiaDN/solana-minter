@@ -222,7 +222,7 @@ fn claim_token_amount(
 
     let mut series_index = AmoebitIndex::try_from_slice(&index_account.data.borrow())?;
 
-    series_index.amount -= amount;
+    series_index.amount = amount;
     series_index.serialize(&mut &mut index_account.data.borrow_mut()[..])?;
     Ok(())
 }
