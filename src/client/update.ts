@@ -82,9 +82,9 @@ const INDEX_SIZE = borsh.serialize(
     new AmoebitIndexAccount(),
 ).length;
 
-const SEED_USER = 'userSeed8'
-const SEED_TOTAL = 'totalSeed8'
-const SEED_TIME = 'timeSeed8'
+const SEED_USER = 'userSeed11'
+const SEED_TOTAL = 'totalSeed11'
+const SEED_TIME = 'timeSeed11'
 // const SEED_USER = 'userSeed'
 
 

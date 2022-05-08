@@ -23,13 +23,13 @@ async function main() {
 
     await initializeTotalAccount(10000000000);
 
-    await setTimeRelease(1651909241168);
+    await setTimeRelease(1652017351314);
 
     await playerBuyTokenAmount(0.3,2.5);
 
-    // await claimForPlayer();
+    await claimForPlayer();
     
-    await readIndexAccount();
+    // await readIndexAccount();
 
     await readTotalTokenAccount();
 

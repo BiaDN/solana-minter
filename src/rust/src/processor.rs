@@ -1,6 +1,3 @@
-// use solana_sdk::commitment_config::CommitmentConfig;
-// use solana_client::rpc_client::RpcClient;
-
 use crate::instruction::{AmoebitIndex, BuyAmountIndex, CountInstruction, TimeStruct};
 use std::convert::TryInto;
 use {
@@ -15,6 +12,8 @@ use {
         sysvar::{clock::Clock, Sysvar},
     },
 };
+
+// use chrono;
 
 use std::str;
 
@@ -33,29 +32,6 @@ pub fn process_instruction<'a>(
     instruction_data: &[u8],
 ) -> ProgramResult {
     let instruction = CountInstruction::unpack(instruction_data)?;
-
-    // let accounts_iter = &mut accounts.iter();
-
-    // let index_account = next_account_info(accounts_iter)?; // 0
-    // let total_token_account = next_account_info(accounts_iter)?; // 2
-    // let auth_wallet = next_account_info(accounts_iter)?; // 2
-    // let payer_wallet = next_account_info(accounts_iter)?; // 3
-    // let time_account = next_account_info(accounts_iter)?; // 4
-
-    // let mut series_index = AmoebitIndex::try_from_slice(&index_account.data.borrow())?;
-
-    // let mut total_token = AmoebitIndex::try_from_slice(&total_token_account.data.borrow())?;
-    // let mut time_set = TimeStruct::try_from_slice(&time_account.data.borrow())?;
-
-    // let rpc_url = String::from("https://api.devnet.solana.com");
-
-    //     let connection = RpcClient::new_with_commitment(rpc_url, CommitmentConfig::confirmed());
-
-    // let timeRelease = time_set.de
-    // pub fn transfer_sol(&from,&to,lamports_to_send) -> ProgramResult{
-    //     system_instruction::transfer(from, to, lamports_to_send);
-    //     Ok(());
-    // }
 
     match instruction {
         CountInstruction::Buy(BuyAmountIndex { amount, amount_sol }) => {
@@ -115,8 +91,13 @@ fn count_amount_player(
     let mut time_set = TimeStruct::try_from_slice(&time_account.data.borrow())?;
     let mut total_token = AmoebitIndex::try_from_slice(&total_token_account.data.borrow())?;
 
+    // println!("{:?}", chrono::offset::Local::now());
+    // println!("{:?}", chrono::offset::Utc::now());
+    // let timeBlock: u64  = chrono::Utc::now().timestamp() as u64;
+    let clock = Clock::get()?;
+
     if time_set.timeRelease > 0
-        && time_set.timeRelease < Clock::get().unwrap().unix_timestamp.try_into().unwrap()
+        && time_set.timeRelease < clock.unix_timestamp as u64
         && amount < total_token.amount
     {
         return panic!("Time is end or not enough total_token");
@@ -224,8 +205,11 @@ fn claim_token_amount(
     let mut series_index = AmoebitIndex::try_from_slice(&index_account.data.borrow())?;
     let mut time_set = TimeStruct::try_from_slice(&time_account.data.borrow())?;
 
+    
+    let clock = Clock::get()?;
+
     if time_set.timeRelease > 0
-        && time_set.timeRelease > Clock::get().unwrap().unix_timestamp.try_into().unwrap()
+        && time_set.timeRelease > clock.unix_timestamp as u64
     {
         msg!("Time is end or not enough total_token");
         return Err(ProgramError::UnsupportedSysvar);
