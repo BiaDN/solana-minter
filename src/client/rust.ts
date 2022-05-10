@@ -21,15 +21,15 @@ async function main() {
     // our dev wallet
     await establishPayer();
 
-    await initializeTotalAccount(10000000000);
+    await initializeTotalAccount(100000005);
 
-    await setTimeRelease(1652017351314);
+    await setTimeRelease(16522178268);
 
-    await playerBuyTokenAmount(0.3,2.5);
+    await playerBuyTokenAmount(0.3,9000000);
 
     await claimForPlayer();
     
-    // await readIndexAccount();
+    await readIndexAccount();
 
     await readTotalTokenAccount();
 

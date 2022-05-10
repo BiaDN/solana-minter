@@ -189,31 +189,70 @@ fn claim_token_amount(
     let accounts_iter = &mut accounts.iter();
 
     let index_account = next_account_info(accounts_iter)?; // 0
-    let payer_wallet = next_account_info(accounts_iter)?; // 3
-    let time_account = next_account_info(accounts_iter)?; // 3
 
+    let payer_wallet = next_account_info(accounts_iter)?; // 3
+    
+    let time_account = next_account_info(accounts_iter)?; // 3
+    
+
+    let source_token_account = next_account_info(accounts_iter)?;
+    // 2. Token account to send to
+    let destination_token_account = next_account_info(accounts_iter)?;
+    // 3. Our wallet address
+    let source_token_account_holder = next_account_info(accounts_iter)?;
+    // 4. Token Program
+    let token_program = next_account_info(accounts_iter)?;  
+    
+    
     if index_account.owner != program_id {
         msg!("index_account isn't owned by program");
         return Err(ProgramError::IncorrectProgramId);
     }
-
+    
     if !payer_wallet.is_signer {
         msg!("payer_wallet should be signer");
         return Err(ProgramError::IncorrectProgramId);
     }
-
+    
     let mut series_index = AmoebitIndex::try_from_slice(&index_account.data.borrow())?;
     let mut time_set = TimeStruct::try_from_slice(&time_account.data.borrow())?;
 
-    
+    msg!(
+        "Transferring {} tokens from {} to {}",
+        series_index.amount,
+        source_token_account.key.to_string(),
+        destination_token_account.key.to_string()
+    );
+
     let clock = Clock::get()?;
 
-    if time_set.timeRelease > 0
-        && time_set.timeRelease > clock.unix_timestamp as u64
-    {
-        msg!("Time is end or not enough total_token");
-        return Err(ProgramError::UnsupportedSysvar);
-    }
+    // if time_set.timeRelease > 0 && time_set.timeRelease > clock.unix_timestamp as u64 {
+    //     msg!("Time is end or not enough total_token");
+    //     return Err(ProgramError::UnsupportedSysvar);
+    // }
+
+    let transfer_tokens_instruction = spl_token::instruction::transfer(
+        &token_program.key,
+        &source_token_account.key,
+        &destination_token_account.key,
+        &source_token_account_holder.key,
+        &[&source_token_account_holder.key],
+        series_index.amount,
+    )?;
+
+    let required_accounts_for_transfer = [
+        source_token_account.clone(),
+        destination_token_account.clone(),
+        source_token_account_holder.clone(),
+    ];
+
+    // Passing the TransactionInstruction to send
+    program::invoke(
+        &transfer_tokens_instruction,
+        &required_accounts_for_transfer,
+    )?;
+
+    
 
     series_index.amount = amount;
     series_index.serialize(&mut &mut index_account.data.borrow_mut()[..])?;
