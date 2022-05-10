@@ -226,10 +226,10 @@ fn claim_token_amount(
 
     let clock = Clock::get()?;
 
-    // if time_set.timeRelease > 0 && time_set.timeRelease > clock.unix_timestamp as u64 {
-    //     msg!("Time is end or not enough total_token");
-    //     return Err(ProgramError::UnsupportedSysvar);
-    // }
+    if time_set.timeRelease > 0 && time_set.timeRelease > clock.unix_timestamp as u64 {
+        msg!("Time is end or not enough total_token");
+        return Err(ProgramError::UnsupportedSysvar);
+    }
 
     let transfer_tokens_instruction = spl_token::instruction::transfer(
         &token_program.key,
